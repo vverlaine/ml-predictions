@@ -7,3 +7,8 @@ seaborn
 sqlalchemy
 pyspark
 jupyter
+ipykernel
+requests
+pyyaml
+psycopg2
+.
