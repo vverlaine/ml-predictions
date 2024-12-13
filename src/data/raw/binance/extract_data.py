@@ -5,6 +5,8 @@ import pyspark.sql.functions as F
 import yaml
 import time
 import argparse
+import psycopg2
+from urllib.parse import urlparse
 
 # START_TIME = None
 # END_TIME = None
@@ -43,24 +45,56 @@ def insert_data(symbol: str, interval: str, start_time: str, end_time: str):
 
     jdbc_url = config['database']['url']
 
+    parsed_url = urlparse(jdbc_url.replace("jdbc:", ""))
+    host = parsed_url.hostname
+    database = parsed_url.path[1:]
+    conn = psycopg2.connect(
+        host=host,
+        database=database,
+        user=config['database']['user'],
+        password=config['database']['password']
+    )
+    cursor = conn.cursor()
+
+    delete_query = f"""
+        DELETE FROM public.binance_data
+        WHERE fecha_hora_apertura_dt BETWEEN '{START_TIME}' AND '{END_TIME}'
+          AND par_cd = '{symbol}' AND intervalo_cd = '{interval}'
+        """
+
     try:
-        df.write.mode("overwrite").format("jdbc").option("url", jdbc_url).option(
-            "dbtable", "public.binance_data"
-        ).option("user", config["database"]["user"]).option(
-            "password", config["database"]["password"]
-        ).option(
-            "driver", config["database"]["driver"]
-        ).option(
-            "replaceWhere",
-            f"fecha_hora_apertura_dt BETWEEN '{START_TIME}' AND '{END_TIME}' AND par_cd = '{symbol}' AND intervalo_cd = '{interval}'",
-        ).save()
+        try:
+            cursor.execute(delete_query)
+            conn.commit()
+            print(
+                f"Registros eliminados para el rango de fechas y "
+                f"Par Activos {symbol} con frecuencia {interval}"
+            )
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error al eliminar registros: {e}")
+            raise
 
-        print(f"Registros insertados: {df.count()} en la tabla "
-              f"binance_data para el rango de fechas y "
-              f"Par Activos {symbol} con fecuencia {interval}")
+        try:
+            df.write.mode("append").format("jdbc").option("url", jdbc_url).option(
+                "dbtable", "public.binance_data"
+            ).option("user", config["database"]["user"]).option(
+                "password", config["database"]["password"]
+            ).option(
+                "driver", config["database"]["driver"]
+            ).save()
 
-    except Exception as e:
-        print(f"Error al insertar registros: {e}")
+            print(
+                f"Registros insertados: {df.count()} en la tabla "
+                f"binance_data para el rango de fechas y "
+                f"Par Activos {symbol} con frecuencia {interval}"
+            )
+        except Exception as e:
+            print(f"Error al insertar registros: {e}")
+
+    except Exception as main_exception:
+        print(f"Se produjo un error en el proceso: {main_exception}")
 
 
 def main(symbol, interval, start_time, end_time):
