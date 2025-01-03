@@ -12,3 +12,5 @@ requests
 pyyaml
 psycopg2
 ta
+xgboost
+pycaret
