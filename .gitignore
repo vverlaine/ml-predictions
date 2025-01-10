@@ -3,3 +3,12 @@ __pycache__/
 *.pyc
 .DS_Store
 conf/local/database_config.yaml
+data/external/local/historic_eurusd.csv
+data/external/local/historic_eurousd.csv
+src/data/raw/forex/.dukascopy-cache/
+.dukascopy-cache
+node_modules
+hs_err_pid40780.log
+package-lock.json
+package.json
+src/data/raw/forex/hs_err_pid66288.log
