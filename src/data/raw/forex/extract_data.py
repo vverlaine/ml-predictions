@@ -158,11 +158,11 @@ def main(symbol, interval, start_time, end_time):
     print(f"Tiempo transcurrido: {tiempo_transcurrido} segundos")
 
     if interval != "1m":
-        for i in range(60, 0, -1):
+        for i in range(300, 0, -1):
             print(f"Esperando {i} segundos para la siguiente extracción...", end="\r")
             time.sleep(1)
     else:
-        for i in range(30, 0, -1):
+        for i in range(300, 0, -1):
             print(f"Esperando {i} segundos para la siguiente extracción...", end="\r")
             time.sleep(1)
 
