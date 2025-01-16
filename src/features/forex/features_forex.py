@@ -37,10 +37,6 @@ with open("conf/local/database_config.yaml", 'r') as stream:
 
 jdbc_url = config['database']['url']
 
-mongo_user = (config["mongo_user"])
-mongo_password = (config["mongo_password"])
-uri = f"mongodb+srv://{mongo_user}:{mongo_password}@cluster0.y1qgl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-
 
 def load_data_forex() -> DataFrame:
     df = (

@@ -12,3 +12,4 @@ requests
 pyyaml
 psycopg2
 pymongo
+tensorflow
