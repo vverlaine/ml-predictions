@@ -253,15 +253,15 @@ def save_postgres(df):
 
 
 # Entrenamiento inicial
-df_processed = df_final(
-    train=True,
-    scaler_path="scaler.pkl",
-    pca_path="pca.pkl",
-    xgboost_path="xgboost.pkl"
-)
-# Guarda los datos procesados en Postgres (u otro destino)
-save_postgres(df_processed)
-print("Entrenamiento inicial completado. Modelos guardados.")
+# df_processed = df_final(
+#     train=True,
+#     scaler_path="scaler.pkl",
+#     pca_path="pca.pkl",
+#     xgboost_path="xgboost.pkl"
+# )
+# # Guarda los datos procesados en Postgres (u otro destino)
+# save_postgres(df_processed)
+# print("Entrenamiento inicial completado. Modelos guardados.")
 
 # Transformación de nuevos datos
 df_transformed = df_final(
