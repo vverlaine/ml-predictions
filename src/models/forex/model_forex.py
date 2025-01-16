@@ -38,14 +38,18 @@ def load_data_forex() -> DataFrame:
 
 
 def prepare_lstm_data(df, target_column="monto_cierre_val", time_steps=time_steps):
-    data = df.drop(columns=["fecha_hora_apertura_dt"]).values
-    target_index = df.columns.get_loc(target_column)
+    """
+    Prepara los datos para el modelo LSTM.
+    """
+    # Extraer características (sin la columna objetivo ni datetime)
+    features = df.drop(columns=["fecha_hora_apertura_dt", target_column])
+
     X, y = [], []
 
     print("Inicia preparación de datos")
-    for i in range(len(data) - time_steps):
-        X.append(data[i:i + time_steps, :])
-        y.append(data[i + time_steps, target_index])
+    for i in range(len(features) - time_steps):
+        X.append(features.iloc[i:i + time_steps].values)
+        y.append(df[target_column].iloc[i + time_steps])
     print("Preparación terminada")
 
     return np.array(X), np.array(y)
@@ -61,6 +65,13 @@ def build_lstm_model(input_shape):
 
     model.compile(optimizer="adam", loss="mean_squared_error")
     return model
+
+
+def save_training_columns(df, filepath="training_columns.yaml"):
+    columns = df.drop(columns=["fecha_hora_apertura_dt", "monto_cierre_val"]).columns.to_list()
+    with open(filepath, "w") as file:
+        yaml.dump(columns, file)
+    print(f"Columnas de entrenamiento guardadas en {filepath}")
 
 
 def train_and_predict_lstm(df_final, time_steps=time_steps):
