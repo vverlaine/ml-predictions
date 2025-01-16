@@ -10,6 +10,7 @@ from sklearn.decomposition import PCA
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
+import joblib
 
 spark = get_SparkSession()
 
@@ -35,7 +36,7 @@ def load_data_forex() -> DataFrame:
     return df
 
 
-def scaler_features(df):
+def scaler_features(df, scaler_path="scaler.pkl"):
     datetime_column = df["fecha_hora_apertura_dt"]
     target_column = df["monto_cierre_val"]
 
@@ -43,6 +44,8 @@ def scaler_features(df):
 
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(features)
+
+    joblib.dump(scaler, scaler_path)
 
     scaled_df = pd.DataFrame(scaled_data, columns=features.columns)
 
@@ -52,7 +55,7 @@ def scaler_features(df):
     return scaled_df
 
 
-def apply_pca(df, n_components=0.95, target_column="monto_cierre_val", datetime_column="fecha_hora_apertura_dt"):
+def apply_pca(df, n_components=0.95, target_column="monto_cierre_val", datetime_column="fecha_hora_apertura_dt", pca_path="pca.pkl"):
     target_data = df[target_column]
     datetime_data = df[datetime_column]
 
@@ -60,6 +63,8 @@ def apply_pca(df, n_components=0.95, target_column="monto_cierre_val", datetime_
 
     pca = PCA(n_components=n_components)
     principal_components = pca.fit_transform(features)
+
+    joblib.dump(pca, pca_path)
 
     print(f"Varianza explicada por las componentes principales: {np.sum(pca.explained_variance_ratio_):.2f}")
 
@@ -127,21 +132,54 @@ def selection_features_xgboost(df):
     return X_selected
 
 
-def df_final():
+def df_final(train=True, scaler_path="scaler.pkl", pca_path="pca.pkl", xgboost_path="xgboost.pkl"):
+    # Cargar datos desde Spark
     df_pd = load_data_forex().toPandas()
 
-    df_scaled = scaler_features(df_pd)
+    # Escalar los datos
+    if train:
+        print("Entrenando scaler...")
+        df_scaled = scaler_features(df_pd, scaler_path=scaler_path)
+    else:
+        print("Usando scaler entrenado...")
+        df_scaled = transform_with_saved_scaler_pca(df_pd, scaler_path=scaler_path, pca_path=None)
 
+    # Eliminar columnas redundantes
+    print("Eliminando columnas redundantes...")
     df_cleaned = remove_redundant_columns(
         df_scaled,
         threshold=0.9,
         exclude_columns=["monto_cierre_val", "fecha_hora_apertura_dt", "monto_maximo_val", "monto_minimo_val", "monto_apertura_val"]
     )
 
-    df_pca = apply_pca(df_cleaned, n_components=0.95)
+    # Aplicar PCA
+    if train:
+        print("Entrenando PCA...")
+        df_pca = apply_pca(df_cleaned, n_components=0.95, pca_path=pca_path)
+    else:
+        print("Usando PCA entrenado...")
+        df_pca = transform_with_saved_scaler_pca(df_cleaned, scaler_path=None, pca_path=pca_path)
 
-    df_filtered = selection_features_xgboost(df_pca)
-    df_filtered = spark.createDataFrame(df_filtered)
+    # Selección de características con XGBoost
+    if train:
+        print("Entrenando modelo XGBoost...")
+        df_filtered = selection_features_xgboost(df_pca)
+        joblib.dump(df_filtered, xgboost_path)  # Guardar el modelo de selección
+        df_filtered = spark.createDataFrame(df_filtered)
+    else:
+        print("Usando modelo XGBoost entrenado...")
+        model = joblib.load(xgboost_path)
+        required_columns = ["monto_cierre_val", "fecha_hora_apertura_dt"]
+        X = df_pca.drop(columns=required_columns)
+        selector = SelectFromModel(model, prefit=True, threshold="median")
+        selected_features = selector.get_support(indices=True)
+        selected_columns = X.columns[selected_features]
+        X_selected = X[selected_columns]
+
+        X_selected["monto_cierre_val"] = df_pca["monto_cierre_val"].reset_index(drop=True)
+        X_selected["fecha_hora_apertura_dt"] = df_pca["fecha_hora_apertura_dt"].reset_index(drop=True)
+        df_filtered = spark.createDataFrame(X_selected)
+
     return df_filtered
 
 
@@ -156,5 +194,55 @@ def save_postgres(df):
         .save()
 
 
-df_processed = df_final()
-save_postgres(df_processed)
+def transform_with_saved_scaler_pca(df, scaler_path="scaler.pkl", pca_path="pca.pkl"):
+    """
+    Transforma un nuevo conjunto de datos utilizando el scaler y PCA previamente ajustados.
+    """
+    # Cargar el scaler y PCA previamente guardados
+    scaler = joblib.load(scaler_path)
+    pca = joblib.load(pca_path)
+
+    # Guardar las columnas de fecha y target
+    datetime_column = df["fecha_hora_apertura_dt"]
+    target_column = df["monto_cierre_val"]
+
+    # Escalar características
+    features = df.drop(columns=["fecha_hora_apertura_dt", "monto_cierre_val"]).dropna()
+    scaled_data = scaler.transform(features)
+
+    # Aplicar PCA
+    principal_components = pca.transform(scaled_data)
+
+    # Crear DataFrame con componentes principales
+    pca_df = pd.DataFrame(principal_components, columns=[f"PC{i+1}" for i in range(principal_components.shape[1])])
+    pca_df["monto_cierre_val"] = target_column.reset_index(drop=True)
+    pca_df["fecha_hora_apertura_dt"] = datetime_column.reset_index(drop=True)
+
+    return pca_df
+
+
+# Entrenamiento inicial
+# df_processed = df_final(
+#     train=True,
+#     scaler_path="scaler.pkl",
+#     pca_path="pca.pkl",
+#     xgboost_path="xgboost.pkl"
+# )
+#
+# # Guarda los datos procesados en Postgres (u otro destino)
+# save_postgres(df_processed)
+#
+# print("Entrenamiento inicial completado. Modelos guardados.")
+
+# Transformación de nuevos datos
+df_transformed = df_final(
+    train=False,
+    scaler_path="scaler.pkl",
+    pca_path="pca.pkl",
+    xgboost_path="xgboost.pkl"
+)
+
+# Guarda los datos transformados en Postgres (u otro destino)
+save_postgres(df_transformed)
+
+print("Transformación completada. Datos procesados listos.")
