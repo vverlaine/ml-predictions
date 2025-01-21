@@ -1,36 +1,62 @@
-from src.data.load_data import load_csv
-from src.data.preprocess import clean_data
-from src.features.build_features import add_features
-from src.models.train_model import train_model
-from src.models.evaluate_model import evaluate_model
-from src.visualization.visualize import plot_data
+import argparse
+import src.data.bronze.forex.extract_data as extract_data
+import src.data.silver.forex.lags_features_forex as lags_features_forex
+import src.data.silver.forex.mdt_forex as mdt_forex
+import time
+from src.utils.spark_loader import get_SparkSession
+
+spark = get_SparkSession()
 
 
-def main():
-    # Load data
-    df = load_csv('data/raw/data.csv')
+def main(symbol, interval, start_time, end_time, train):
+    print("******************************************************************************************************")
+    hora_inicio = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    print(f"Hora de inicio: {hora_inicio}")
 
-    # Preprocess data
-    df = clean_data(df)
+    extract_data.main(spark, symbol, interval, start_time, end_time)
+    tiempo_transcurrido = round(time.time() - time.mktime(time.strptime(hora_inicio, '%Y-%m-%d %H:%M:%S')), 2)
+    print(f"Tiempo transcurrido: {tiempo_transcurrido} segundos")
 
-    # Add features
-    df = add_features(df)
+    print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ")
 
-    # Split data
-    from sklearn.model_selection import train_test_split
-    X = df.drop('target', axis=1)
-    y = df['target']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    hora_inicio = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    print(f"Hora de inicio: {hora_inicio}")
+    lags_features_forex.main(spark, symbol, interval)
+    tiempo_transcurrido = round(time.time() - time.mktime(time.strptime(hora_inicio, '%Y-%m-%d %H:%M:%S')), 2)
+    print(f"Tiempo transcurrido: {tiempo_transcurrido} segundos")
 
-    # Train model
-    model = train_model(X_train, y_train)
+    print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ")
 
-    # Evaluate model
-    evaluate_model(model, X_test, y_test)
+    hora_inicio = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    print(f"Hora de inicio: {hora_inicio}")
+    mdt_forex.main(symbol, interval, train)
+    tiempo_transcurrido = round(time.time() - time.mktime(time.strptime(hora_inicio, '%Y-%m-%d %H:%M:%S')), 2)
+    print(f"Tiempo transcurrido: {tiempo_transcurrido} segundos")
 
-    # Visualize data
-    plot_data(df, ['feature1', 'feature2'])
+    if interval != "1m":
+        for i in range(300, 0, -1):
+            print(f"Esperando {i} segundos para la siguiente extracción...", end="\r")
+            time.sleep(1)
+    else:
+        for i in range(300, 0, -1):
+            print(f"Esperando {i} segundos para la siguiente extracción...", end="\r")
+            time.sleep(1)
+
+# main("eurusd", "m5", None, None, False)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Extracción de datos históricos de Dukascopy.")
+    parser.add_argument("--symbol", required=True, help="Símbolo del par de divisas (ej. EURUSD)")
+    parser.add_argument("--interval", required=True, help="Intervalo de tiempo (ej. m1, m5)")
+    parser.add_argument("--start_time", required=False, default=None, help="Tiempo de inicio (formato: YYYY-MM-DD)")
+    parser.add_argument("--end_time", required=False, default=None, help="Tiempo de fin (formato: YYYY-MM-DD)")
+    parser.add_argument("--train", required=False, default=False, help="Si se quiere entrenar PCA y Scaler")
+
+    args = parser.parse_args()
+
+    try:
+        while True:
+            main(args.symbol, args.interval, args.start_time, args.end_time, args.train)
+    except KeyboardInterrupt:
+        print("Proceso interrumpido por el usuario.")

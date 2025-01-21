@@ -1,6 +1,6 @@
 from src.utils.spark_loader import get_SparkSession
 from src.utils.time_utils import get_unix_time
-from src.data.raw.binance.utils_extract import get_all_historical_klines
+from src.data.bronze.binance.utils_extract import get_all_historical_klines
 import pyspark.sql.functions as F
 import yaml
 import time

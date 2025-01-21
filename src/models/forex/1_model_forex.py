@@ -11,11 +11,11 @@ from pyspark.sql import DataFrame
 import seaborn as sns
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import pandas as pd
-
+from tensorflow.keras.callbacks import EarlyStopping
 
 spark = get_SparkSession()
 
-time_steps = 30
+time_steps = 20
 # COMMAND ----------
 # with open("../../../../conf/local/database_config.yaml", 'r') as stream:
 with open("conf/local/database_config.yaml", 'r') as stream:
@@ -57,9 +57,9 @@ def prepare_lstm_data(df, target_column="monto_cierre_val", time_steps=time_step
 
 def build_lstm_model(input_shape):
     model = Sequential()
-    model.add(LSTM(units=50, return_sequences=True, input_shape=input_shape))
+    model.add(LSTM(units=75, return_sequences=True, input_shape=input_shape))
     model.add(Dropout(0.2))
-    model.add(LSTM(units=50, return_sequences=False))
+    model.add(LSTM(units=75, return_sequences=False))
     model.add(Dropout(0.2))
     model.add(Dense(units=1))
 
@@ -83,35 +83,29 @@ def train_and_predict_lstm(df_final, time_steps=time_steps):
     model = build_lstm_model(input_shape=(X_train.shape[1], X_train.shape[2]))
     print(model.summary())
 
-    print("Entrena el modelo")
-    model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
+    early_stopping = EarlyStopping(
+        monitor="val_loss",
+        patience=10,
+        restore_best_weights=True,
+        verbose=1
+    )
 
-    save_lstm_model(model, model_path="lstm_model.keras")
+    print("Entrena el modelo")
+    model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2, callbacks=[early_stopping])
+
+    save_lstm_model(model, model_path=f"lstm_model_{time_steps}.keras")
 
     # Predicciones
     y_pred = model.predict(X_test)
     return y_test, y_pred
 
 
-def save_lstm_model(model, model_path="lstm_model.keras"):
-    """
-    Guarda el modelo LSTM entrenado.
-
-    :param model: El modelo LSTM entrenado.
-    :param model_path: Ruta donde se guardará el modelo.
-    """
-    # Guardar en formato SavedModel
+def save_lstm_model(model, model_path=f"lstm_model_{time_steps}.keras"):
     model.save(model_path)
     print(f"Modelo guardado en {model_path}")
 
 
 def load_lstm_model(model_path="lstm_model"):
-    """
-    Carga un modelo LSTM guardado.
-
-    :param model_path: Ruta desde donde se cargará el modelo.
-    :return: Modelo cargado.
-    """
     model = tf.keras.models.load_model(model_path)
     print(f"Modelo cargado desde {model_path}")
     return model
@@ -142,38 +136,26 @@ print(f"MAE: {mae:.4f}")
 
 
 def save_training_results(df, y_test, y_pred, time_steps=time_steps):
-    """
-    Guarda los resultados del entrenamiento (valores reales, predicciones, y fechas).
-
-    :param df: DataFrame original con la columna `fecha_hora_apertura_dt`.
-    :param y_test: Valores reales de la variable objetivo.
-    :param y_pred: Predicciones del modelo.
-    :param time_steps: Número de pasos temporales utilizados en LSTM.
-    """
-    # Ajustar el índice para las fechas correspondientes a y_test
     total_data_points = len(df)
     test_start_index = total_data_points - len(y_test)  # Determinar el índice inicial de y_test
     fechas = df["fecha_hora_apertura_dt"].iloc[test_start_index:].reset_index(drop=True)
 
-    # Validar que las longitudes coincidan
     if len(fechas) != len(y_test) or len(y_test) != len(y_pred):
         raise ValueError(
             f"Longitudes no coinciden: fechas({len(fechas)}), y_test({len(y_test)}), y_pred({len(y_pred)})"
         )
 
-    # Crear un DataFrame con los resultados
     results_df = pd.DataFrame({
         "fecha_hora_apertura_dt": fechas,
         "valor_real": y_test,
         "valor_predicho": y_pred.flatten(),
     })
 
-    # Convertir a Spark DataFrame y guardar en Postgres
     spark_df = spark.createDataFrame(results_df)
 
     spark_df.write.format("jdbc") \
         .option("url", jdbc_url) \
-        .option("dbtable", "public.modelo_final_entrenado") \
+        .option("dbtable", "public.test_data_modelo_forex") \
         .option("user", config["database"]["user"]) \
         .option("password", config["database"]["password"]) \
         .option("driver", config["database"]["driver"]) \
@@ -197,7 +179,6 @@ print(f"MAPE: {mape:.2f}%")
 
 errores = df_pd_new["valor_real"] - df_pd_new["valor_predicho"]
 
-# Graficar la distribución de errores
 plt.figure(figsize=(12, 6))
 sns.histplot(errores, kde=True, bins=50, label="Distribución de errores")
 plt.axvline(0, color="red", linestyle="--", label="Error medio")
