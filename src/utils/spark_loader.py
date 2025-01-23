@@ -10,8 +10,8 @@ def get_SparkSession():
         .config('spark.driver.extraClassPath', 'conf/jars/postgresql-42.7.3.jar') \
         .config("spark.driver.memory", "4g") \
         .config("spark.executor.memory", "4g") \
-        .config("spark.executor.cores", "2") \
-        .config("spark.sql.shuffle.partitions", "8") \
+        .config("spark.executor.cores", "4") \
+        .config("spark.sql.shuffle.partitions", "200") \
         .config("spark.driver.maxResultSize", "2g") \
         .config("spark.rpc.message.maxSize", "512") \
         .getOrCreate()

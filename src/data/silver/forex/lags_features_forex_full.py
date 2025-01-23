@@ -43,8 +43,8 @@ INTERVALS = {
 COLUMNS = [
     # "monto_apertura_val",
     "monto_cierre_val",
-    # "monto_maximo_val",
-    # "monto_minimo_val",
+    "monto_maximo_val",
+    "monto_minimo_val",
     # "volume",
 ]
 
@@ -98,82 +98,80 @@ def build_features_forex(spark, df: DataFrame) -> DataFrame:
         bb_indicator.bollinger_lband(),
     )
 
-    # df_pd["atr_14"] = ta.volatility.average_true_range(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     close=df_pd["monto_cierre_val"],
-    #     window=14,
-    # )
+    df_pd["atr_14"] = ta.volatility.average_true_range(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        close=df_pd["monto_cierre_val"],
+        window=14,
+    )
 
-    # kc_indicator = ta.volatility.KeltnerChannel(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     close=df_pd["monto_cierre_val"],
-    #     window=20,
-    # )
-    # df_pd["kc_bbm"], df_pd["kc_bbh"], df_pd["kc_bbl"] = (
-    #     kc_indicator.keltner_channel_mband(),
-    #     kc_indicator.keltner_channel_hband(),
-    #     kc_indicator.keltner_channel_lband(),
-    # )
+    kc_indicator = ta.volatility.KeltnerChannel(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        close=df_pd["monto_cierre_val"],
+        window=20,
+    )
+    df_pd["kc_bbm"], df_pd["kc_bbh"], df_pd["kc_bbl"] = (
+        kc_indicator.keltner_channel_mband(),
+        kc_indicator.keltner_channel_hband(),
+        kc_indicator.keltner_channel_lband(),)
 
-    # stoch = ta.momentum.stoch(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     close=df_pd["monto_cierre_val"],
-    #     window=14,
-    #     smooth_window=3,
-    # )
-    # df_pd["stoch_k"] = stoch
-    # df_pd["stoch_d"] = ta.momentum.stoch_signal(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     close=df_pd["monto_cierre_val"],
-    #     window=14,
-    #     smooth_window=3,
-    # )
+    stoch = ta.momentum.stoch(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        close=df_pd["monto_cierre_val"],
+        window=14,
+        smooth_window=3,
+    )
+    df_pd["stoch_k"] = stoch
+    df_pd["stoch_d"] = ta.momentum.stoch_signal(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        close=df_pd["monto_cierre_val"],
+        window=14,
+        smooth_window=3,)
 
-    # df_pd["williams_r"] = ta.momentum.williams_r(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     close=df_pd["monto_cierre_val"],
-    #     lbp=14,
-    # )
+    df_pd["williams_r"] = ta.momentum.williams_r(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        close=df_pd["monto_cierre_val"],
+        lbp=14,
+    )
 
     df_pd["roc_12"] = ta.momentum.roc(df_pd["monto_cierre_val"], window=12)
 
-    # df_pd["adx"] = ta.trend.adx(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     close=df_pd["monto_cierre_val"],
-    #     window=14,
-    # )
+    df_pd["adx"] = ta.trend.adx(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        close=df_pd["monto_cierre_val"],
+        window=14
+    )
 
-    # df_pd["ichimoku_a"] = ta.trend.ichimoku_a(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     window1=9,  # Línea de conversión
-    #     window2=26,  # Línea base
-    # )
+    df_pd["ichimoku_a"] = ta.trend.ichimoku_a(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        window1=9,  # Línea de conversión
+        window2=26,  # Línea base
+    )
 
-    # df_pd["ichimoku_b"] = ta.trend.ichimoku_b(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     window2=26,  # Línea base
-    #     window3=52,  # Span B
-    # )
+    df_pd["ichimoku_b"] = ta.trend.ichimoku_b(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        window2=26,  # Línea base
+        window3=52,  # Span B
+    )
 
-    # df_pd["ichimoku_base"] = ta.trend.ichimoku_base_line(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     window2=26,  # Línea base
-    # )
+    df_pd["ichimoku_base"] = ta.trend.ichimoku_base_line(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        window2=26,  # Línea base
+    )
 
-    # df_pd["ichimoku_conversion"] = ta.trend.ichimoku_conversion_line(
-    #     high=df_pd["monto_maximo_val"],
-    #     low=df_pd["monto_minimo_val"],
-    #     window1=9,  # Línea de conversión
-    # )
+    df_pd["ichimoku_conversion"] = ta.trend.ichimoku_conversion_line(
+        high=df_pd["monto_maximo_val"],
+        low=df_pd["monto_minimo_val"],
+        window1=9,  # Línea de conversión
+    )
 
     # df_pd["obv"] = ta.volume.on_balance_volume(
     #     close=df_pd["monto_cierre_val"], volume=df_pd["volume"]
@@ -187,11 +185,11 @@ def build_features_forex(spark, df: DataFrame) -> DataFrame:
     #     window=20,
     # )
 
-    # df_pd["pivot"] = (df_pd["monto_maximo_val"] + df_pd["monto_minimo_val"] + df_pd["monto_cierre_val"]) / 3
-    # df_pd["r1"] = 2 * df_pd["pivot"] - df_pd["monto_minimo_val"]
-    # df_pd["s1"] = 2 * df_pd["pivot"] - df_pd["monto_maximo_val"]
-    # df_pd["r2"] = df_pd["pivot"] + (df_pd["monto_maximo_val"] - df_pd["monto_minimo_val"])
-    # df_pd["s2"] = df_pd["pivot"] - (df_pd["monto_maximo_val"] - df_pd["monto_minimo_val"])
+    df_pd["pivot"] = (df_pd["monto_maximo_val"] + df_pd["monto_minimo_val"] + df_pd["monto_cierre_val"]) / 3
+    df_pd["r1"] = 2 * df_pd["pivot"] - df_pd["monto_minimo_val"]
+    df_pd["s1"] = 2 * df_pd["pivot"] - df_pd["monto_maximo_val"]
+    df_pd["r2"] = df_pd["pivot"] + (df_pd["monto_maximo_val"] - df_pd["monto_minimo_val"])
+    df_pd["s2"] = df_pd["pivot"] - (df_pd["monto_maximo_val"] - df_pd["monto_minimo_val"])
 
     # df_pd["vwap"] = ta.volume.volume_weighted_average_price(
     #     high=df_pd["monto_maximo_val"],
@@ -232,7 +230,7 @@ def delete_data(intervalo: str, divisa: str):
     cursor = conn.cursor()
 
     delete_query = f"""
-        DELETE FROM forex.features_lags_forex
+        DELETE FROM forex.features_lags_forex_full
         WHERE par_cd = '{divisa}' AND intervalo_cd = '{intervalo}'
         """
 
@@ -256,7 +254,7 @@ def save_postgres(df: DataFrame, intervalo: str, divisa: str):
 
     df.write.format("jdbc") \
         .option("url", jdbc_url) \
-        .option("dbtable", "forex.features_lags_forex") \
+        .option("dbtable", "forex.features_lags_forex_full") \
         .option("user", config["database"]["user"]) \
         .option("password", config["database"]["password"]) \
         .option("driver", config["database"]["driver"]) \
@@ -271,3 +269,7 @@ def main(spark, divisa: str, intervalo: str):
     df = df.na.drop()
     save_postgres(df, intervalo, divisa)
     print("Proceso finalizado de creación de features y lags")
+
+# from src.utils.spark_loader import get_SparkSession
+# spark = get_SparkSession()
+# main(spark, "eurusd", "m5")

@@ -42,7 +42,7 @@ def main(symbol, interval, start_time, end_time, train):
             print(f"Esperando {i} segundos para la siguiente extracción...", end="\r")
             time.sleep(1)
 
-# main("eurusd", "m5", None, None, False)
+main("eurusd", "m5", None, None, True)
 
 
 if __name__ == "__main__":
